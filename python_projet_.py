@@ -16,6 +16,14 @@ import matplotlib.pyplot as plt
 %matplotlib inline
 import seaborn as sns
 import numpy as np
+import statsmodels.tsa.api as smt
+import statsmodels.api as sm
+import itertools
+import sys
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
+import os
+import math
 
 # I - Aperçu du Data Frame
 # II - Analyse du data frame
@@ -149,3 +157,66 @@ fig.update_layout(title=" Graphique intéractif représentant le log-rendement s
 ###########################################################################################################################
 
 
+# PREDICTION AVEC L'ALGORITHME ARIMA #
+
+#Pq ce choix d'algortihme ? L'algo ARIMA permet de faire des prédictions même si la série est non -stationnaire
+
+# Explication : ARIMA est la combinaison de trois termes : 
+# le terme autorégressif (AR), le terme de différenciation (I) et le terme de moyennes mobiles (MA)
+# ARIMA (p,d,q):
+# p est le nombre de termes auto-régressifs
+# d est le nombre de différences
+# q est le nombre de moyennes mobiles
+
+mdl = sm.tsa.statespace.SARIMAX(logR,order=(0, 0, 0),seasonal_order=(2, 2, 1, 7))
+res = mdl.fit()
+print(res.summary())
+
+#Observations : On constate que 4 coefficients ont été estimés :
+# 2 coefficients du termes auto-régressifs : -0.6689 et -0.3628
+# le terme de moyenne mobile : -0.9999
+# et la variance du bruit : 0.3349
+
+#Graphiques 
+res.plot_diagnostics(figsize=(16, 10))
+plt.tight_layout()
+plt.show()
+
+y = pd.DataFrame(logR)
+
+# adapter le modèle aux données
+res = sm.tsa.statespace.SARIMAX(y,
+                                order=(0, 0, 0),
+                                seasonal_order=(2, 2, 1, 7),
+                                enforce_stationarity=True,
+                                enforce_invertibility=True).fit()
+ 
+# Limites de la prédiction
+pred = res.get_prediction(start = 430,
+                          dynamic = False, 
+                          full_results=True)
+
+# Graphe de la prédiction et des données
+fig = plt.figure(figsize=(19, 7))
+ax = fig.add_subplot(111)
+ax.plot(y[0:],color='#006699',linewidth = 3, label='Observation');
+pred.predicted_mean.plot(ax=ax,linewidth = 3, linestyle='-', label='Prediction', alpha=.7, color='#ff5318', fontsize=18);
+ax.set_xlabel('temps', fontsize=18)
+ax.set_ylabel('logR', fontsize=18)
+plt.legend(loc='upper left', prop={'size': 20})
+plt.title('Prediction ARIMA', fontsize=22, fontweight="bold")
+plt.show()
+
+
+
+# Précision du modèle en calculant le RMSE
+rmse = math.sqrt(((pred.predicted_mean.values.reshape(-1, 1) - y[430:].values) ** 2).mean())
+print('rmse = '+ str(rmse))
+
+#Conclusion : 
+# On peut remarquer que la prédiction obtenue en utilisant l'algorithme ARIMA n'est pas si satisfaisante que cela.
+#En effet, la prédiction rate souvent les piques du log-rendement, or ces piques sont très importants car cela nous
+#renseigne que la volatilité de l'actif financier est très forte (sûrement du à un Krach Boursier) donc que le risque
+#qu'encourt l'investisseur est grand à ce moment. 
+
+#Essayons de trouver un autre algorithme qui estimera mieux la volatilité de l'actif.
