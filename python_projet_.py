@@ -29,7 +29,7 @@ import math
 # II - Analyse du data frame
 # II - Estimation 
 
-######################################### I- Aperçu du Data Frame###########################################################
+######################################### I- Aperçu du Data Frame##########################################################
 
 ###########################################################################################################################
 
@@ -71,13 +71,15 @@ df_coin.dtypes
 
 df_coin.describe()
 
-############################################################################################################
+###########################################################################################################################
 
 
 
-######################################### II-Analyse graphique du data frame ###########################################################
+
+######################################### II-Analyse graphique du data frame ##############################################
 
 ###########################################################################################################################
+
 
 
 
@@ -113,7 +115,8 @@ plot_acf (df_coin.close, lags = 90)
 # Nous voyons bien toutes les limites de l'ACF. En effet, nous ne pouvons pas conclure sur le fait que les variables de la série soient indépendantes dès lors qu'il y a un phénomène de tendance qui apparaît
 # Le but est  de retirer ces phénomènes de tendance et de saisonnalité afin de pouvoir estimer le cours de clôture.
 
-#############################################################################################################
+###########################################################################################################################
+
 
 # L'objectif de notre projet sera surtout de savoir quel est le moment opportun pour investir dans une telle action ?
 #Essayons de mesurer la volatilité de l'actif c'est-à-dire le risque que supporte un investisseur en détenant un tel actif.
@@ -155,6 +158,7 @@ fig.update_layout(title=" Graphique intéractif représentant le log-rendement s
 ######################################### III- Estimation paramétrique du log-rendement ###################################
 
 ###########################################################################################################################
+
 
 
 # PREDICTION AVEC L'ALGORITHME ARIMA #
