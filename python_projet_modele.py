@@ -46,6 +46,7 @@ type(df_coin)
 
 df_coin.columns 
 print(df_coin)
+
 #Dimension du data frame 
 
 df_coin.shape
@@ -96,6 +97,7 @@ random_x = df_coin.dates
 # traçage de la figure
 
 fig = go.Figure()
+
 fig.add_trace(go.Scatter(x=random_x, y=df_coin.close,
                     mode='lines',
                     name='close price'))
@@ -155,11 +157,11 @@ fig.update_layout(title=" Graphique intéractif représentant le log-rendement s
 #Enfin, juste après le 2 août on peut voir un grand pique , la volatilité est forte , donc le risque qu'encourt l'investisseur est important à ce moment
 
 
-######################################### III- Estimation paramétrique du log-rendement ###################################
+######################################### III- Estimation paramétrique  ###################################################
 
 ###########################################################################################################################
 
-
+#A ) Estimation paramétrique du log-rendement 
 
 # PREDICTION AVEC L'ALGORITHME ARIMA #
 
@@ -221,6 +223,47 @@ print('rmse = '+ str(rmse))
 # On peut remarquer que la prédiction obtenue en utilisant l'algorithme ARIMA n'est pas si satisfaisante que cela.
 #En effet, la prédiction rate souvent les piques du log-rendement, or ces piques sont très importants car cela nous
 #renseigne que la volatilité de l'actif financier est très forte (sûrement du à un Krach Boursier) donc que le risque
-#qu'encourt l'investisseur est grand à ce moment. 
+#qu'encourt l'investisseur est grand à ce moment. De plus, on peut observer sur le graphe des résidus standardisés, que
+# les données du log-rendement sont trop bruitées, ce qui explique le fait que la prédiction soit inintéressante. 
 
-#Essayons de trouver un autre algorithme qui estimera mieux la volatilité de l'actif.
+# Essayons uniquement de prendre  en compte les prix à la clôture.
+
+# B ) Estimation paramétrique du cours de clôture 
+
+#Le prix à la clôture n'était pas stationnaire car on pouvait observer un phénomène de tendance.
+#Représentons le graphe de moyenne mobile, de l'ec-type mobile et de la série pour confirmer cela.
+
+rolling_mean = df_coin.close.rolling(window = 25).mean()
+rolling_std = df_coin.close.rolling(window = 25).std()
+plt.plot(df_coin.close, color = 'blue', label = 'Origine')
+plt.plot(rolling_mean, color = 'red', label = 'Moyenne mobile')
+plt.plot(rolling_std, color = 'black', label = 'Ecart-type mobile')
+plt.legend(loc = 'best')
+plt.title('Moyenne et Ecart-type mobiles')
+plt.show()
+
+#On observe que la moyenne mobile n'est pas constante, elle augmente avec le temps, bien que l'ec-type mobile reste plus ou moins constant
+#Ce qui nous confirme que la série n'est pas stationnaire.
+
+#On peut tout de même faire le modèle ARIMA.
+
+mdl2 = sm.tsa.statespace.SARIMAX(df_coin["close"],order=(0, 0, 0),seasonal_order=(2, 2, 1, 7))
+res2 = mdl2.fit()
+print(res2.summary())
+
+#Graphique des estimations
+res2.plot_diagnostics(figsize=(16, 10))
+plt.tight_layout()
+plt.show()
+
+#On constate également que les données du prix à la clôture sont très bruitées donc l'estimation par l'algo ARIMA  sera également ininteressant.
+
+
+#C ) Modèle à chaîne de Markov cachée
+
+#Les résidus de la série du log-rendement n’étaient pas un bruit blanc.
+# On ne peut donc pas modéliser cette série temporelle par un modèle de type ARIMA
+# Essayons d'ajuster un modèle à chaîne de Markov cachée
+
+
+
