@@ -109,7 +109,7 @@ fig.update_layout(title=" Trajectoire représentant le prix à la cloture selon 
     
 #On observe que le cours de clôture a tendance a augmenté entre Avril 2019 jusqu'a fin Juin 2019 (le pic est atteint juste avant Juillet 2019).
 #De juillet 2019 jusqu'à Octobre 2020, on observe des fluctuations; à certains moments il y a des augmentations du prix, et à d'autres moments des baisses du prix.
-# On observe également un autre pic ; on observe une forte baisse du prix entre Mars 2020 - Avril 2020.
+# On observe également un autre pic ; on observe une forte baisse du prix au mois de Mars 2020
 #On peut tracer l'ACF d'une telle série chronologique même si on sait à l'avance qu'étant donné que la série est non-stationnaire
 #l'autocorrélation empirique estimera très mal l'autocorrélation. Par conséquent, on interprétera mal l'ACF. 
 
@@ -122,12 +122,12 @@ plot_acf (df_coin.close, lags = 90)
 ###########################################################################################################################
 
 
-# L'objectif de notre projet sera surtout de savoir quel est le moment opportun pour investir dans une telle action.
-#Essayons de mesurer la volatilité de l'actif c'est-à-dire le risque que supporte un investisseur en détenant un tel actif.
+# L'objectif de notre projet sera surtout de savoir quel est le moment opportun pour investir dans une telle action afin de réaliser un bénéfice.
+#Essayons de mesurer la volatilité de l'actif c'est-à-dire le risque ( à la hausse ou à la perte ) que supporte un investisseur en détenant un tel actif.
 # Rappel : volatilité d'une action = propension à subir des mouvements de prix plus ou moins prononcés.
-# A priori, on pourrait penser que le meilleur moment pour investir serait courant juillet car le prix de clôture est relativement stable.
-# Puisque le prix est stable, l'actif sera très peu volatile, donc le risque faible.
-# (Et à contrario, le moment le moins opportun durant la période observé, entre Mars 2020 -Avril 2020 car le risque que l'actif perde de la valeur est important.
+# A priori,si on suppose qu'on achète l'actif en Mars 2019, on pourrait penser que le meilleur moment pour vendre notre actif serait aux alentours de fin Juin 2019 
+#car le prix de clôture atteint son maximum, par conséquent on pourrait  réalisé un grand bénéfice ( de 15M de dollars ).
+# (Et à contrario, le moment le moins opportun durant la période observé, serait en Mars 2020  car ferait seulement un bénéfice de 2M .
 #Voyons cela de plus près...
 
 #On calcule les log-rendements de la série entre le prix_t et t-1
@@ -154,9 +154,13 @@ fig.update_layout(title=" Trajectoire représentant le log-rendement selon le te
 
 
 #Commentaire : 
-#On observe très clairement que la volatilité est faible durant le mois de juillet (volatilité autour de 0% / 1%) 
-#Cela rejoint ce que vous avions vu dans le graphe précédent à savoir que le cours variait peu durant cette période.
-#On observe une très forte volatilité de l'actif autour du mois de Mars 2020, donc le risque qu'encourt l'investisseur est important à ce moment.
+
+#Le log-rendement (mesure de la volatilité) tourne plus ou moins autour de 5%/7%, l'actif est globalement peu volatile.
+#Cependant, on observe des pics ; il y a une très forte volatilité de l'actif autour du mois de Mars 2020 ( environ 19%), donc le risque qu'encourt l'investisseur est important à ce moment.
+#On observe également un autre pic en fin Juin 2019, car le cours atteint son maximum le 26 Juin 2020 et ensuite chute le 27 Juin 2020.
+#Ce qui rejoint ce que nous avions dit précédemment à savoir que plus l'amplitude des variations du prix est important, plus
+#l'actif sera volatile donc plus l’espérance de gain (ou risque de perte) sera important.
+
 
 
 ######################################### III- Estimation paramétrique  ###################################################
@@ -294,58 +298,19 @@ print('rmse = '+ str(rmse))
 # L'algortihme a très bien estimé le prix de clôture.
 
 # Cependant, l'objectif de notre projet c'est surtout un choix d'investissement à prendre
-# La  volatilité est un critère à prendre en compte .
+# La volatilité est donc un critère à prendre en compte .
 
 
 #C )  Alogrithme LSTM permettant d'estimer le log-rendement.
 
-#################################################################################################
-
-#Aide à la décision 
-
-def action_sequence(taux):
-    #Cette fonction détermine si on devrait vendre ou acheter du btc selon une liste de taux de croissance
-    act_list = []
-    for df_coin["close"] in taux:
-        if df_coin["close"] < 0:
-            faire = "acheter"
-        elif df_coin["close"] > 0:
-            faire = 'vendre'
-        else:
-            faire = 'passer'
-        act_list.append(faire)
-    return act_list
-
-#Lorsque le produit est moins cher, on achète du bitcoin et on vend  quand le produit est plus cher pour faire un benefice.
-#Quand prix_close <0 la valeur du bitcoin a baissé par rapport a la valeur du dollars donc c'est moins cher d'acheter du bitcoin donc je prefere acheter
-#quand prix_close >0 le bitcoin a pris de la valeur donc je le vend plus cher que le prix d'achat.
+###########################################################################################################################
 
 
 
-def stock(stock_aud, stock_btc, faire, btc_aud, proportion_stock = 0.25):
-    #Cette fonction permet de déterminer le stock de cash après achat ou vente de btc
-    #proportion_stock du stock de cash qu'on souhaite acheter ou vendre
-    if faire == "acheter":
-        stock_aud_finale = stock_aud - stock_aud*proportion_stock
-        stock_btc_finale = stock_btc + (stock_aud*proportion_stock)/btc_aud
-    elif faire == "vendre":
-        stock_aud_finale = stock_aud + stock_btc*proportion_stock*btc_aud
-        stock_btc_finale = stock_btc - stock_btc*proportion_stock
-    else:
-        stock_aud_finale = stock_aud 
-        stock_btc_finale = stock_btc
-    return stock_aud_finale, stock_btc_finale
+######################################### IV- Prise de décision d'investissement  #########################################
+
+###########################################################################################################################
 
 
 
-#Quand l'algo nous conseille d'acheter du bitcoin on va depenser du dollars pour acheter du bitcoin donc le 
-#stock de dollars baisse 
-#Cette quantité de dollars est converti en bitcoin et pour convertir il faut utiliser le cours du bitcoincpar rapport au dollars
-
-stock_aud = 1000000
-stock_btc = 3
-stock_aud_test = []
-stock_btc_test = []
-stock_aud_vrai_test = []
-stock_btc_vrai_test = []
 
