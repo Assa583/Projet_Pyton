@@ -18,6 +18,9 @@ import seaborn as sns
 import numpy as np
 import statsmodels.tsa.api as smt
 import statsmodels.api as sm
+from statsmodels.tsa.stattools import adfuller
+pip install arch
+from arch import arch_model
 import itertools
 import sys
 from sklearn.preprocessing import MinMaxScaler
@@ -113,6 +116,24 @@ fig.update_layout(title=" Trajectoire représentant le prix à la cloture selon 
 #On peut tracer l'ACF d'une telle série chronologique même si on sait à l'avance qu'étant donné que la série est non-stationnaire
 #l'autocorrélation empirique estimera très mal l'autocorrélation. Par conséquent, on interprétera mal l'ACF. 
 
+#Le prix à la clôture n'est pas stationnaire car on pouvait observer un phénomène de tendance.
+#Représentons le graphe de moyenne mobile, de l'ec-type mobile et de la série pour confirmer cela.
+
+rolling_mean = df_coin.close.rolling(window = 25).mean()
+rolling_std = df_coin.close.rolling(window = 25).std()
+plt.plot(df_coin.close, color = 'blue', label = 'Données brutes')
+plt.plot(rolling_mean, color = 'red', label = 'Moyenne mobile')
+plt.plot(rolling_std, color = 'black', label = 'Ecart-type mobile')
+plt.legend(loc = 'best')
+plt.title('Moyenne et Ecart-type mobiles')
+plt.show()
+
+
+#On observe que la moyenne mobile n'est pas constante, elle augmente ou baisse avec le temps, bien que l'ec-type mobile reste plus ou moins constant
+#Ce qui nous confirme que la série n'est pas stationnaire.
+
+#l'ACF de la série chronologique
+
 from statsmodels.graphics.tsaplots import plot_acf 
 plot_acf (df_coin.close, lags = 90)
 
@@ -180,14 +201,15 @@ fig.update_layout(title=" Trajectoire représentant le log-rendement selon le te
 # d est le nombre de différences
 # q est le nombre de moyennes mobiles
 
-mdl = sm.tsa.statespace.SARIMAX(logR,order=(0, 0, 0),seasonal_order=(2, 2, 1, 7))
+# order=() ce sont respectivement les coefficients AR, I et MA je test le modèle avec order=( 1,1,1) 
+mdl = sm.tsa.statespace.SARIMAX(logR,order=(1, 1, 1))
 res = mdl.fit()
 print(res.summary())
 
-#Observations : On constate que 4 coefficients ont été estimés :
-# 2 coefficients du termes auto-régressifs : -0.6550 et -0.3242 
-# le terme de moyenne mobile : -1.0000 
-# et la variance du bruit :  0.8216 
+#Observations : On constate que 3 coefficients ont été estimés :
+# 1 coefficient du terme auto-régressif : -0.0594
+# le terme de moyenne mobile : -0.9998
+# et la variance du bruit :  0.6241   
 
 #Graphiques de la modélisation
 res.plot_diagnostics(figsize=(16, 10))
@@ -200,8 +222,7 @@ y = pd.DataFrame(logR)
 
 # adapter le modèle aux données
 res = sm.tsa.statespace.SARIMAX(y,
-                                order=(0, 0, 0),
-                                seasonal_order=(2, 2, 1, 7),
+                                order=(2, 1, 2),
                                 enforce_stationarity=True,
                                 enforce_invertibility=True).fit()
  
@@ -230,30 +251,76 @@ print('rmse = '+ str(rmse))
 # rmse = 0.912
 
 #Conclusion : 
-# On peut remarquer que la prédiction obtenue en utilisant l'algorithme ARIMA n'est pas si satisfaisante que cela.
-#En effet, la prédiction rate souvent les piques du log-rendement, or ces piques sont très importants car cela nous
+# On peut remarquer que la prédiction obtenue en utilisant l'algorithme ARIMA n'est pas du tout satisfaisante.
+#En effet, la prédiction rate presque tout le temps les piques du log-rendement, or ces piques sont très importants car cela nous
 #renseigne que la volatilité de l'actif financier est très forte (sûrement du à un Krach Boursier) donc que le risque
 #qu'encourt l'investisseur est grand à ce moment. De plus, on peut observer sur le graphe des résidus standardisés, que
-# les données du log-rendement sont trop bruitées, ce qui explique le fait que la prédiction soit inintéressante. 
+#les données du log-rendement sont trop bruitées et qu'il y beaucoup de volatilité dans les données.
+#Ce qui explique le fait que la prédiction soit inintéressante. 
+
+#Les ARMA ont une faiblesse dès lors qu'il y a de la volatilité dans les données.
+#Il existe un modèle pour modéliser les log-rendements d'une série financière et qui tient compte de la volatilité.
+#Ce sont les processus GARCH. 
+
+#Pour appliquer un modèle GARCH, la série doit être stationnaire.On sait que la série du prix à la clôture n'est pas stationnaire
+#Cependant, la série de du log-rendement l'est peut-être car en prenant le log d'une série on peut se ramener à qlq chose de stationnaire.
+
+#Vérifions si la série du log-rendement est stationnaire.
+
+def stationarity(timeseries):
+    
+    # Statistiques mobiles
+    rolling_mean = timeseries.rolling(window=12).mean() #moyenne mobile
+    
+    # tracé statistiques mobiles
+    original = plt.plot(timeseries, color='blue', label='Origine')
+    mean = plt.plot(rolling_mean, color='red', label='Moyenne Mobile') #tendance estimé par MA
+    plt.legend(loc='best') 
+    plt.title('Moyenne mobile')
+    plt.show(block=False)
+    
+    # Test Dickey–Fuller : 
+    result = adfuller(timeseries)
+    print('Statistiques ADF : {}'.format(result[0]))
+    print('p-value : {}'.format(result[1]))
+    print('Valeurs Critiques :')
+    for key, value in result[4].items():
+        print('\t{}: {}'.format(key, value))
+
+
+logR_2=logR 
+logR_2.dropna(inplace=True) # car le test fonctionne si on enlève les valeurs NA
+get_stationarity(logR_2) 
+
+#Graphiquement : 
+#La moyenne mobile qui estime la tendance de la série logR est bien constante donc la série logR est stationnaire.
+
+#Résultat du test 
+#Le test de Dickey-Fuller est définit comme suit; H0 :" La série n'est pas stationnaire" vs H1= "La série est stationnaire"
+#On obtient une p-value de 0% donc on rejete H0 pour tout alpha. La serie du logR est bien stationnaire.
+#On peut appliquer le modèle GARCH à ces données de log rendement.
+
+garch = arch_model(logR, vol='GARCH', p=1, q=1)
+resultat = garch.fit()
+print(resultat.summary())
+
+
+
+#PB INSTALLATION ARCH 
+
+
+
+
+
+
+
 
 # Essayons uniquement de prendre en compte les prix à la clôture.
 
 # B ) Estimation paramétrique du cours de clôture 
 
 #Le prix à la clôture n'était  pas stationnaire car on pouvait observer un phénomène de tendance.
-#Représentons le graphe de moyenne mobile, de l'ec-type mobile et de la série pour confirmer cela.
 
-rolling_mean = df_coin.close.rolling(window = 25).mean()
-rolling_std = df_coin.close.rolling(window = 25).std()
-plt.plot(df_coin.close, color = 'blue', label = 'Données brutes')
-plt.plot(rolling_mean, color = 'red', label = 'Moyenne mobile')
-plt.plot(rolling_std, color = 'black', label = 'Ecart-type mobile')
-plt.legend(loc = 'best')
-plt.title('Moyenne et Ecart-type mobiles')
-plt.show()
-
-#On observe que la moyenne mobile n'est pas constante, elle augmente ou baisse avec le temps, bien que l'ec-type mobile reste plus ou moins constant
-#Ce qui nous confirme que la série n'est pas stationnaire.
 
 #On peut tout de même faire le modèle ARIMA.
 
